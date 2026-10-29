@@ -1,6 +1,24 @@
-import React, { useRef, useMemo, useState } from 'react';
-import { useFrame, useLoader } from '@react-three/fiber';
-import * as THREE from 'three';
+// Procedural fallback texture while loading or on error
+function createFallbackTexture() {
+  if (typeof document === 'undefined') return new THREE.Texture();
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  const gradient = ctx.createLinearGradient(0, 0, 256, 256);
+  gradient.addColorStop(0, '#fdf2f8');
+  gradient.addColorStop(1, '#fbcfe8');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, 256, 256);
+  ctx.fillStyle = '#be123c';
+  ctx.font = '48px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('🌹', 128, 128);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
 
 // Create a single Polaroid photo pick stuck into the bouquet
 export function PhotoPick({
@@ -15,12 +33,27 @@ export function PhotoPick({
   const currentScale = useRef(0);
   const targetScale = visible ? 1 : 0;
   const [hovered, setHovered] = useState(false);
+  const [texture, setTexture] = useState(() => createFallbackTexture());
 
-  // Load the photo texture safely
-  const texture = useLoader(THREE.TextureLoader, url);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.minFilter = THREE.LinearFilter;
-  texture.generateMipmaps = false;
+  // Fail-safe texture loading: never blocks rendering or causes white screen
+  useEffect(() => {
+    if (!url) return;
+    const loader = new THREE.TextureLoader();
+    loader.load(
+      url,
+      (loadedTex) => {
+        loadedTex.colorSpace = THREE.SRGBColorSpace;
+        loadedTex.minFilter = THREE.LinearFilter;
+        loadedTex.generateMipmaps = false;
+        loadedTex.needsUpdate = true;
+        setTexture(loadedTex);
+      },
+      undefined,
+      (err) => {
+        console.warn('Unable to load photo URL, using floral placeholder:', url, err);
+      }
+    );
+  }, [url]);
 
   // Polaroid frame materials
   const materials = useMemo(() => {

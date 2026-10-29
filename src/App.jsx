@@ -6,6 +6,37 @@ import './App.css';
 
 const LOCAL_PHOTOS_KEY = 'rose_bouquet_custom_photos_v1';
 
+class SceneErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  componentDidCatch(error, errorInfo) {
+    console.error('Scene rendering error:', error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="webgl-fallback-container">
+          <div className="webgl-fallback-card">
+            <h2>Đang tải lại bó hoa...</h2>
+            <button
+              className="btn btn-primary"
+              onClick={() => this.setState({ hasError: false })}
+            >
+              Thử lại
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function App() {
   const [hasWebGL, setHasWebGL] = useState(true);
 
@@ -160,19 +191,21 @@ export default function App() {
       <div className="ambient-glow" />
 
       {/* 3D Scene: Clean, full screen without any text */}
-      <Suspense fallback={<LoadingScreen />}>
-        <Scene
-          flowerCount={flowerCount}
-          colorTheme={colorTheme}
-          autoRotate={autoRotate}
-          onUserInteract={handleUserInteract}
-          reducedMotion={reducedMotion}
-          showPhotos={showPhotos}
-          onTogglePhotos={handleTogglePhotos}
-          onClickPhoto={(url) => setSelectedPhoto(url)}
-          photoUrls={activePhotoUrls}
-        />
-      </Suspense>
+      <SceneErrorBoundary>
+        <Suspense fallback={<LoadingScreen />}>
+          <Scene
+            flowerCount={flowerCount}
+            colorTheme={colorTheme}
+            autoRotate={autoRotate}
+            onUserInteract={handleUserInteract}
+            reducedMotion={reducedMotion}
+            showPhotos={showPhotos}
+            onTogglePhotos={handleTogglePhotos}
+            onClickPhoto={(url) => setSelectedPhoto(url)}
+            photoUrls={activePhotoUrls}
+          />
+        </Suspense>
+      </SceneErrorBoundary>
 
       {/* Enlarged Photo View when tapping an individual photo (pure image, no text) */}
       {selectedPhoto && (
