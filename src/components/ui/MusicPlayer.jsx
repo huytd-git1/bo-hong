@@ -4,24 +4,89 @@ import { MusicBoxPlayer } from '../../utils/birthdayAudio';
 
 export const MusicPlayer = React.memo(function MusicPlayer({ baseUrl = '/' }) {
   const [isPlaying, setIsPlaying] = useState(false);
-  const [userInteracted, setUserInteracted] = useState(false);
-  const [showPrompt, setShowPrompt] = useState(true);
+  const [showPrompt, setShowPrompt] = useState(false);
 
   const audioRef = useRef(null);
   const synthRef = useRef(null);
   const usingSynthRef = useRef(false);
   const isPlayingRef = useRef(false);
-  isPlayingRef.current = isPlaying;
+
+  useEffect(() => {
+    isPlayingRef.current = isPlaying;
+  }, [isPlaying]);
 
   const cleanBase = baseUrl.endsWith('/') ? baseUrl : baseUrl + '/';
   const audioSrc = `${cleanBase}music/happy-birthday.mp3`;
+
+  // Start music helper
+  const startMusic = useCallback(() => {
+    if (usingSynthRef.current && synthRef.current) {
+      synthRef.current.start();
+      setIsPlaying(true);
+      setShowPrompt(false);
+      return;
+    }
+
+    if (!audioRef.current) return;
+    const audio = audioRef.current;
+
+    const promise = audio.play();
+    if (promise !== undefined) {
+      promise
+        .then(() => {
+          setIsPlaying(true);
+          setShowPrompt(false);
+        })
+        .catch((err) => {
+          // If blocked by browser autoplay policy, wait for user gesture
+          if (err.name === 'NotAllowedError') {
+            setIsPlaying(false);
+            setShowPrompt(true);
+          } else {
+            console.warn('Audio play error, falling back to MusicBox synth:', err);
+            usingSynthRef.current = true;
+            if (synthRef.current) {
+              synthRef.current.start();
+              setIsPlaying(true);
+              setShowPrompt(false);
+            }
+          }
+        });
+    }
+  }, []);
+
+  // Stop / pause music helper
+  const stopMusic = useCallback(() => {
+    if (usingSynthRef.current && synthRef.current) {
+      synthRef.current.stop();
+      setIsPlaying(false);
+      return;
+    }
+
+    if (!audioRef.current) return;
+    const audio = audioRef.current;
+    audio.pause();
+    setIsPlaying(false);
+  }, []);
+
+  // Toggle button handler
+  const handleToggle = useCallback((e) => {
+    if (e) e.stopPropagation();
+    setShowPrompt(false);
+
+    if (isPlaying) {
+      stopMusic();
+    } else {
+      startMusic();
+    }
+  }, [isPlaying, startMusic, stopMusic]);
 
   // Initialize HTML5 Audio and Web Audio fallback synthesizer
   useEffect(() => {
     const audio = new Audio(audioSrc);
     audio.loop = true;
     audio.preload = 'auto';
-    audio.volume = 0.65;
+    audio.volume = 0.75;
     audioRef.current = audio;
 
     const synth = new MusicBoxPlayer();
@@ -44,6 +109,21 @@ export const MusicPlayer = React.memo(function MusicPlayer({ baseUrl = '/' }) {
     audio.addEventListener('pause', onPause);
     audio.addEventListener('error', onError);
 
+    // 1. Attempt autoplay immediately on load
+    const initialPlay = audio.play();
+    if (initialPlay !== undefined) {
+      initialPlay
+        .then(() => {
+          setIsPlaying(true);
+          setShowPrompt(false);
+        })
+        .catch(() => {
+          // Autoplay blocked by browser policy: prompt user and wait for any gesture
+          setIsPlaying(false);
+          setShowPrompt(true);
+        });
+    }
+
     return () => {
       audio.pause();
       audio.removeEventListener('play', onPlay);
@@ -54,105 +134,25 @@ export const MusicPlayer = React.memo(function MusicPlayer({ baseUrl = '/' }) {
     };
   }, [audioSrc]);
 
-  // Start music
-  const startMusic = useCallback(() => {
-    if (usingSynthRef.current) {
-      if (synthRef.current) {
-        synthRef.current.start();
-        setIsPlaying(true);
-        setShowPrompt(false);
-      }
-      return;
-    }
-
-    if (!audioRef.current) return;
-    const audio = audioRef.current;
-    audio.volume = 0;
-
-    const promise = audio.play();
-    if (promise !== undefined) {
-      promise
-        .then(() => {
-          setIsPlaying(true);
-          setShowPrompt(false);
-          // Smooth volume ramp
-          let vol = 0;
-          const ramp = setInterval(() => {
-            vol += 0.05;
-            if (vol >= 0.65) {
-              audio.volume = 0.65;
-              clearInterval(ramp);
-            } else {
-              audio.volume = vol;
-            }
-          }, 35);
-        })
-        .catch((err) => {
-          console.warn('Autoplay prevented or error, falling back to MusicBox synth:', err);
-          usingSynthRef.current = true;
-          if (synthRef.current) {
-            synthRef.current.start();
-            setIsPlaying(true);
-            setShowPrompt(false);
-          }
-        });
-    }
-  }, []);
-
-  // Stop / pause music
-  const stopMusic = useCallback(() => {
-    if (usingSynthRef.current && synthRef.current) {
-      synthRef.current.stop();
-      setIsPlaying(false);
-      return;
-    }
-
-    if (!audioRef.current) return;
-    const audio = audioRef.current;
-    let vol = audio.volume;
-    const ramp = setInterval(() => {
-      vol -= 0.1;
-      if (vol <= 0.05) {
-        audio.volume = 0;
-        audio.pause();
-        clearInterval(ramp);
-        setIsPlaying(false);
-      } else {
-        audio.volume = vol;
-      }
-    }, 25);
-  }, []);
-
-  // Toggle button click
-  const handleToggle = useCallback((e) => {
-    if (e) e.stopPropagation();
-    setUserInteracted(true);
-    setShowPrompt(false);
-
-    if (isPlaying) {
-      stopMusic();
-    } else {
-      startMusic();
-    }
-  }, [isPlaying, startMusic, stopMusic]);
-
-  // Autoplay on first touch/click anywhere on page
+  // 2. Gesture listener: any touch, click, scroll or key on the page triggers playback immediately
   useEffect(() => {
-    const handleFirstInteraction = () => {
-      if (!userInteracted && !isPlaying) {
+    const handleGesture = () => {
+      if (audioRef.current && audioRef.current.paused && !isPlayingRef.current) {
         startMusic();
-        setUserInteracted(true);
       }
     };
 
-    window.addEventListener('click', handleFirstInteraction, { once: true });
-    window.addEventListener('touchstart', handleFirstInteraction, { once: true });
+    const events = ['pointerdown', 'touchstart', 'click', 'keydown'];
+    events.forEach((evt) => {
+      window.addEventListener(evt, handleGesture, { once: true, passive: true });
+    });
 
     return () => {
-      window.removeEventListener('click', handleFirstInteraction);
-      window.removeEventListener('touchstart', handleFirstInteraction);
+      events.forEach((evt) => {
+        window.removeEventListener(evt, handleGesture);
+      });
     };
-  }, [userInteracted, isPlaying, startMusic]);
+  }, [startMusic]);
 
   return (
     <div className="music-player-widget">
@@ -170,8 +170,8 @@ export const MusicPlayer = React.memo(function MusicPlayer({ baseUrl = '/' }) {
         id="birthday-music-btn"
         className={`music-fab-btn ${isPlaying ? 'is-playing' : 'is-paused'}`}
         onClick={handleToggle}
-        title={isPlaying ? 'Tạm dừng nhạc chúc mừng sinh nhật' : 'Bật nhạc chúc mừng sinh nhật'}
-        aria-label={isPlaying ? 'Tạm dừng nhạc sinh nhật' : 'Bật nhạc sinh nhật'}
+        title={isPlaying ? 'Tạm dừng: Khúc Hát Mừng Sinh Nhật' : 'Bật nhạc: Khúc Hát Mừng Sinh Nhật'}
+        aria-label={isPlaying ? 'Tạm dừng nhạc' : 'Phát khúc hát mừng sinh nhật'}
       >
         <span className="music-fab-icon">
           {isPlaying ? (
@@ -191,14 +191,14 @@ export const MusicPlayer = React.memo(function MusicPlayer({ baseUrl = '/' }) {
         )}
 
         <span className="music-fab-text">
-          {isPlaying ? 'Nhạc sinh nhật' : 'Bật nhạc'}
+          {isPlaying ? 'Khúc Hát Mừng Sinh Nhật' : 'Bật nhạc sinh nhật'}
         </span>
       </button>
 
-      {/* First-time prompt bubble */}
+      {/* Invitation tooltip when autoplay was blocked by browser */}
       {!isPlaying && showPrompt && (
         <div className="music-prompt-tooltip" onClick={handleToggle}>
-          <span className="prompt-text">Chạm để bật nhạc sinh nhật 🎵</span>
+          <span className="prompt-text">Chạm màn hình để phát nhạc sinh nhật 🎵</span>
           <span className="prompt-arrow" />
         </div>
       )}
