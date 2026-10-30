@@ -8,7 +8,6 @@ import * as THREE from 'three';
 // 1. Create a single curved parametric rose petal geometry
 export function createPetalGeometry(type = 'mid', segU = 16, segV = 16) {
   const positions = [];
-  const normals = [];
   const uvs = [];
   const indices = [];
 

@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, Suspense } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, ContactShadows } from '@react-three/drei';
 import * as THREE from 'three';
@@ -65,7 +65,7 @@ function CameraManager({
       maxDistance={25.0}
       minPolarAngle={THREE.MathUtils.degToRad(10)} // Allow high angle view
       maxPolarAngle={THREE.MathUtils.degToRad(105)} // Allow viewing from slightly below
-      autoRotate={autoRotate && !isResetting.current}
+      autoRotate={autoRotate}
       autoRotateSpeed={0.8}
       target={[0, 0.4, 0]}
       onStart={() => {
@@ -132,31 +132,33 @@ export const Scene = React.memo(function Scene({
         <pointLight position={[0, -2, 2]} intensity={0.4} color="#fef3c7" />
 
         {/* The 3D Rose Bouquet with photo sticks */}
-        <Bouquet
-          count={flowerCount}
-          colorTheme={colorTheme}
-          showPhotos={showPhotos}
-          onTogglePhotos={onTogglePhotos}
-          onClickPhoto={onClickPhoto}
-          photoUrls={photoUrls}
-        />
+        <Suspense fallback={null}>
+          <Bouquet
+            count={flowerCount}
+            colorTheme={colorTheme}
+            showPhotos={showPhotos}
+            onTogglePhotos={onTogglePhotos}
+            onClickPhoto={onClickPhoto}
+            photoUrls={photoUrls}
+          />
 
-        {/* Lush falling rose petals and leaves in background */}
-        <FallingPetals
-          count={75}
-          colorTheme={colorTheme}
-          reducedMotion={reducedMotion}
-        />
+          {/* Lush falling rose petals and leaves in background */}
+          <FallingPetals
+            count={75}
+            colorTheme={colorTheme}
+            reducedMotion={reducedMotion}
+          />
 
-        {/* Contact shadow beneath bouquet */}
-        <ContactShadows
-          position={[0, -2.4, 0]}
-          opacity={0.45}
-          scale={7}
-          blur={2.2}
-          far={4}
-          color="#4a1525"
-        />
+          {/* Contact shadow beneath bouquet */}
+          <ContactShadows
+            position={[0, -2.4, 0]}
+            opacity={0.45}
+            scale={7}
+            blur={2.2}
+            far={4}
+            color="#4a1525"
+          />
+        </Suspense>
 
         {/* Camera controller & OrbitControls */}
         <CameraManager

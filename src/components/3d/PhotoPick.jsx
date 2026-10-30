@@ -1,5 +1,11 @@
+import React, { useRef, useMemo, useState, useEffect } from 'react';
+import { useFrame } from '@react-three/fiber';
+import * as THREE from 'three';
+
 // Procedural fallback texture while loading or on error
+let fallbackTextureCache = null;
 function createFallbackTexture() {
+  if (fallbackTextureCache) return fallbackTextureCache;
   if (typeof document === 'undefined') return new THREE.Texture();
   const canvas = document.createElement('canvas');
   canvas.width = 256;
@@ -15,9 +21,9 @@ function createFallbackTexture() {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText('🌹', 128, 128);
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  return tex;
+  fallbackTextureCache = new THREE.CanvasTexture(canvas);
+  fallbackTextureCache.colorSpace = THREE.SRGBColorSpace;
+  return fallbackTextureCache;
 }
 
 // Create a single Polaroid photo pick stuck into the bouquet
@@ -32,16 +38,20 @@ export function PhotoPick({
   const groupRef = useRef();
   const currentScale = useRef(0);
   const targetScale = visible ? 1 : 0;
-  const [hovered, setHovered] = useState(false);
   const [texture, setTexture] = useState(() => createFallbackTexture());
 
   // Fail-safe texture loading: never blocks rendering or causes white screen
   useEffect(() => {
     if (!url) return;
+    let isMounted = true;
     const loader = new THREE.TextureLoader();
     loader.load(
       url,
       (loadedTex) => {
+        if (!isMounted) {
+          loadedTex.dispose();
+          return;
+        }
         loadedTex.colorSpace = THREE.SRGBColorSpace;
         loadedTex.minFilter = THREE.LinearFilter;
         loadedTex.generateMipmaps = false;
@@ -53,6 +63,9 @@ export function PhotoPick({
         console.warn('Unable to load photo URL, using floral placeholder:', url, err);
       }
     );
+    return () => {
+      isMounted = false;
+    };
   }, [url]);
 
   // Polaroid frame materials
@@ -123,11 +136,9 @@ export function PhotoPick({
       }}
       onPointerOver={(e) => {
         e.stopPropagation();
-        setHovered(true);
         document.body.style.cursor = 'pointer';
       }}
       onPointerOut={() => {
-        setHovered(false);
         document.body.style.cursor = 'default';
       }}
     >
