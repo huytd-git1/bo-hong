@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import confetti from 'canvas-confetti';
 import { Scene } from './components/3d/Scene';
 import { isWebGLAvailable, WebGLFallback, LoadingScreen } from './components/ui/WebGLFallback';
+import { MusicPlayer } from './components/ui/MusicPlayer';
 import './App.css';
 
 const LOCAL_PHOTOS_KEY = 'rose_bouquet_custom_photos_v1';
@@ -189,6 +190,9 @@ export default function App() {
 
       {/* Subtle warm ambient glow behind the bouquet */}
       <div className="ambient-glow" />
+
+      {/* Birthday Music Player floating widget */}
+      <MusicPlayer baseUrl={baseUrl} />
 
       {/* 3D Scene: Clean, full screen without any text */}
       <SceneErrorBoundary>
