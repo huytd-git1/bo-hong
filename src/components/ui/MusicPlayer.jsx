@@ -38,7 +38,6 @@ export const MusicPlayer = React.memo(function MusicPlayer({ baseUrl = '/' }) {
           setShowPrompt(false);
         })
         .catch((err) => {
-          // If blocked by browser autoplay policy, wait for user gesture
           if (err.name === 'NotAllowedError') {
             setIsPlaying(false);
             setShowPrompt(true);
@@ -170,8 +169,8 @@ export const MusicPlayer = React.memo(function MusicPlayer({ baseUrl = '/' }) {
         id="birthday-music-btn"
         className={`music-fab-btn ${isPlaying ? 'is-playing' : 'is-paused'}`}
         onClick={handleToggle}
-        title={isPlaying ? 'Tạm dừng: Khúc Hát Mừng Sinh Nhật' : 'Bật nhạc: Khúc Hát Mừng Sinh Nhật'}
-        aria-label={isPlaying ? 'Tạm dừng nhạc' : 'Phát khúc hát mừng sinh nhật'}
+        title={isPlaying ? 'Tạm dừng: Hôm Nay Sinh Nhật Ai Thế' : 'Bật nhạc: Hôm Nay Sinh Nhật Ai Thế'}
+        aria-label={isPlaying ? 'Tạm dừng nhạc' : 'Phát bài hát Hôm Nay Sinh Nhật Ai Thế'}
       >
         <span className="music-fab-icon">
           {isPlaying ? (
@@ -191,7 +190,7 @@ export const MusicPlayer = React.memo(function MusicPlayer({ baseUrl = '/' }) {
         )}
 
         <span className="music-fab-text">
-          {isPlaying ? 'Khúc Hát Mừng Sinh Nhật' : 'Bật nhạc sinh nhật'}
+          {isPlaying ? 'Hôm Nay Sinh Nhật Ai Thế' : 'Bật nhạc sinh nhật'}
         </span>
       </button>
 
